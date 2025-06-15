@@ -1,7 +1,11 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/property_provider.dart';
+
+final searchQueryProvider = StateProvider<String>((ref) => '');
 
 class HomeOwnerPage extends ConsumerWidget {
   const HomeOwnerPage({super.key});
@@ -9,15 +13,15 @@ class HomeOwnerPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final propertiesAsync = ref.watch(propertyListProvider);
+    final searchQuery = ref.watch(searchQueryProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
-          // Modern App Bar
           SliverAppBar(
-            expandedHeight: 120,
+            expandedHeight: 180, // Increased to accommodate search bar
             floating: false,
             pinned: true,
             elevation: 0,
@@ -36,29 +40,51 @@ class HomeOwnerPage extends ConsumerWidget {
                     ],
                   ),
                 ),
-                child: const SafeArea(
+                child: SafeArea(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(24, 16, 24, 24),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        Text(
+                        const Text(
                           'Dashboard',
                           style: TextStyle(
-                            fontSize: 32,
+                            fontSize: 28, // Reduced from 32
                             fontWeight: FontWeight.w700,
                             color: Colors.white,
                             letterSpacing: -0.5,
                           ),
                         ),
-                        SizedBox(height: 4),
-                        Text(
+                        const SizedBox(height: 4),
+                        const Text(
                           'Kelola properti dengan mudah',
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 14, // Reduced from 16
                             color: Colors.white70,
                             fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                        const SizedBox(height: 8), // Reduced from 16
+                        // Search Bar
+                        SizedBox(
+                          height: 48, // Fixed height
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: TextField(
+                              onChanged: (value) => ref.read(searchQueryProvider.notifier).state = value,
+                              style: const TextStyle(color: Colors.white),
+                              decoration: InputDecoration(
+                                hintText: 'Cari properti...',
+                                hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+                                prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.7)),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -71,7 +97,6 @@ class HomeOwnerPage extends ConsumerWidget {
               Container(
                 margin: const EdgeInsets.only(right: 16, top: 8),
                 child: Material(
-                  // ignore: deprecated_member_use
                   color: Colors.white.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(16),
                   child: InkWell(
@@ -91,11 +116,11 @@ class HomeOwnerPage extends ConsumerWidget {
             ],
           ),
 
-          // Content
           SliverToBoxAdapter(
             child: RefreshIndicator(
               onRefresh: () async {
                 ref.invalidate(propertyListProvider);
+                ref.read(searchQueryProvider.notifier).state = '';
               },
               color: const Color(0xFF3B82F6),
               child: Padding(
@@ -103,12 +128,10 @@ class HomeOwnerPage extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Stats Cards
                     _buildStatsCards(propertiesAsync),
                     
                     const SizedBox(height: 32),
 
-                    // Properties Section Header
                     Row(
                       children: [
                         const Text(
@@ -127,9 +150,17 @@ class HomeOwnerPage extends ConsumerWidget {
 
                     const SizedBox(height: 20),
 
-                    // Properties List
                     propertiesAsync.when(
-                      data: (properties) => _buildPropertiesList(properties, context, ref),
+                      data: (properties) {
+                        final filteredProperties = properties.where((property) {
+                          final name = property.data['nama']?.toString().toLowerCase() ?? '';
+                          final location = property.data['lokasi']?.toString().toLowerCase() ?? '';
+                          return name.contains(searchQuery.toLowerCase()) || 
+                                location.contains(searchQuery.toLowerCase());
+                        }).toList();
+
+                        return _buildPropertiesList(filteredProperties, context, ref);
+                      },
                       loading: () => _buildLoadingState(),
                       error: (e, st) => _buildErrorState(e),
                     ),
@@ -196,7 +227,6 @@ class HomeOwnerPage extends ConsumerWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            // ignore: deprecated_member_use
             color: Colors.black.withOpacity(0.04),
             blurRadius: 20,
             offset: const Offset(0, 4),
@@ -251,7 +281,6 @@ class HomeOwnerPage extends ConsumerWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            // ignore: deprecated_member_use
             color: const Color(0xFF3B82F6).withOpacity(0.3),
             blurRadius: 12,
             offset: const Offset(0, 4),
@@ -317,7 +346,6 @@ class HomeOwnerPage extends ConsumerWidget {
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                // ignore: deprecated_member_use
                 color: Colors.black.withOpacity(0.04),
                 blurRadius: 20,
                 offset: const Offset(0, 4),
@@ -348,9 +376,7 @@ class HomeOwnerPage extends ConsumerWidget {
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
-                                // ignore: deprecated_member_use
                                 const Color(0xFF3B82F6).withOpacity(0.1),
-                                // ignore: deprecated_member_use
                                 const Color(0xFF1D4ED8).withOpacity(0.05),
                               ],
                             ),
@@ -400,48 +426,36 @@ class HomeOwnerPage extends ConsumerWidget {
                             ],
                           ),
                         ),
-                        _buildPropertyMenu(context, ref, property, status, isAvailable),
+                        _buildPropertyMenu(context, ref, property),
                       ],
                     ),
                     const SizedBox(height: 20),
                     Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
+                        // Toggle Switch
+                        Transform.scale(
+                          scale: 0.8,
+                          child: Switch(
+                            value: isAvailable,
+                            activeColor: const Color(0xFF10B981),
+                            inactiveThumbColor: const Color(0xFFF59E0B),
+                            onChanged: (value) async {
+                              await ref.read(propertyListProvider.notifier).toggleStatus(
+                                    property.$id,
+                                    status,
+                                  );
+                            },
                           ),
-                          decoration: BoxDecoration(
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          isAvailable ? 'Tersedia' : 'Disewa',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
                             color: isAvailable
-                                ? const Color(0xFFECFEF3)
-                                : const Color(0xFFFEF3C7),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: isAvailable
-                                      ? const Color(0xFF10B981)
-                                      : const Color(0xFFF59E0B),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                status,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: isAvailable
-                                      ? const Color(0xFF059669)
-                                      : const Color(0xFFD97706),
-                                ),
-                              ),
-                            ],
+                                ? const Color(0xFF059669)
+                                : const Color(0xFFD97706),
                           ),
                         ),
                         const Spacer(),
@@ -462,7 +476,7 @@ class HomeOwnerPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildPropertyMenu(BuildContext context, WidgetRef ref, property, String status, bool isAvailable) {
+  Widget _buildPropertyMenu(BuildContext context, WidgetRef ref, property) {
     return PopupMenuButton<String>(
       icon: Container(
         padding: const EdgeInsets.all(12),
@@ -480,7 +494,7 @@ class HomeOwnerPage extends ConsumerWidget {
         borderRadius: BorderRadius.circular(16),
       ),
       elevation: 8,
-      onSelected: (value) => _handleMenuAction(context, ref, value, property, status),
+      onSelected: (value) => _handleMenuAction(context, ref, value, property),
       itemBuilder: (context) => [
         const PopupMenuItem(
           value: 'edit',
@@ -489,23 +503,6 @@ class HomeOwnerPage extends ConsumerWidget {
               Icon(Icons.edit_rounded, size: 20, color: Color(0xFF3B82F6)),
               SizedBox(width: 12),
               Text('Edit', style: TextStyle(fontWeight: FontWeight.w500)),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'toggle',
-          child: Row(
-            children: [
-              Icon(
-                isAvailable ? Icons.key_rounded : Icons.check_circle_rounded,
-                size: 20,
-                color: isAvailable ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                isAvailable ? 'Tandai Disewa' : 'Tandai Tersedia',
-                style: const TextStyle(fontWeight: FontWeight.w500),
-              ),
             ],
           ),
         ),
@@ -532,7 +529,6 @@ class HomeOwnerPage extends ConsumerWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            // ignore: deprecated_member_use
             color: Colors.black.withOpacity(0.04),
             blurRadius: 20,
             offset: const Offset(0, 4),
@@ -585,6 +581,7 @@ class HomeOwnerPage extends ConsumerWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
+            // ignore: duplicate_ignore
             // ignore: deprecated_member_use
             color: Colors.black.withOpacity(0.04),
             blurRadius: 20,
@@ -694,7 +691,7 @@ class HomeOwnerPage extends ConsumerWidget {
   }
 
   Future<void> _performLogout(BuildContext context, WidgetRef ref) async {
-    Navigator.pop(context); // Close dialog
+    Navigator.pop(context);
 
     showDialog(
       context: context,
@@ -754,18 +751,13 @@ class HomeOwnerPage extends ConsumerWidget {
     }
   }
 
-  Future<void> _handleMenuAction(BuildContext context, WidgetRef ref, String value, property, String status) async {
+  Future<void> _handleMenuAction(BuildContext context, WidgetRef ref, String value, property) async {
     if (value == 'edit') {
       Navigator.pushNamed(
         context,
         '/edit-property',
         arguments: property,
       );
-    } else if (value == 'toggle') {
-      await ref.read(propertyListProvider.notifier).toggleStatus(
-            property.$id,
-            status,
-          );
     } else if (value == 'delete') {
       final confirmed = await showDialog<bool>(
         context: context,
