@@ -1,0 +1,40 @@
+// File: android/app/build.gradle
+
+apply plugin: "com.android.application"
+apply plugin: "org.jetbrains.kotlin.android"
+
+android {
+    namespace "com.example.app_kontrakanku"
+    compileSdk 33
+    ndkVersion "25.1.8937393"
+
+    defaultConfig {
+        applicationId "com.example.app_kontrakanku"
+        minSdk 21
+        targetSdk 33
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            signingConfig signingConfigs.debug
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    kotlinOptions {
+        jvmTarget = "11"
+    }
+}
+
+flutter {
+    source '../..'
+}

@@ -1,70 +1,138 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:appwrite/appwrite.dart';
-import 'package:appwrite/models.dart';
+import '../utils/appwrite_client.dart';
+import 'user_provider.dart';
 
-/// Provider untuk Appwrite Client (di‐override di main.dart)
-final appwriteClientProvider = Provider<Client>((ref) {
-  throw UnimplementedError();
+final authProvider = StateNotifierProvider<AuthNotifier, AsyncValue<bool>>((ref) {
+  return AuthNotifier(ref);
 });
 
-/// Provider untuk service Account (Appwrite Auth)
-final accountProvider = Provider<Account>((ref) {
-  final client = ref.watch(appwriteClientProvider);
-  return Account(client);
-});
+final authErrorProvider = StateProvider<String?>((ref) => null);
+final authLoadingProvider = StateProvider<bool>((ref) => false);
 
-/// StateProvider menampung data user yang sedang login (null kalau belum)
-final currentUserProvider = StateProvider<User?>((ref) => null);
+class AuthNotifier extends StateNotifier<AsyncValue<bool>> {
+  final Ref ref;
+  late final Account account;
 
-/// AuthController: register, login, logout, cek session
-class AuthController {
-  final Ref _ref;
-  AuthController(this._ref);
+  AuthNotifier(this.ref) : super(const AsyncValue.loading()) {
+    final client = ref.read(appwriteClientProvider);
+    account = Account(client);
+    _checkAuth();
+  }
 
-  Account get _account => _ref.read(accountProvider);
-
-  /// Cek session user saat aplikasi dijalankan (dipanggil SplashScreen)
-  Future<void> checkCurrentUser(WidgetRef ref) async {
+  Future<void> _checkAuth() async {
     try {
-      final User user = await _account.get();
-      ref.read(currentUserProvider.notifier).state = user;
-    } on AppwriteException {
-      // Jika tidak ada session aktif, tetap null
-      ref.read(currentUserProvider.notifier).state = null;
+      final user = await account.get();
+      ref.read(userProvider.notifier).setUser(user);
+      state = const AsyncValue.data(true);
+    } catch (_) {
+      state = const AsyncValue.data(false);
     }
   }
 
-  /// Register dengan email & password
-  Future<void> register({
-    required String email,
-    required String password,
-  }) async {
-    await _account.create(
-      userId: ID.unique(),
-      email: email.trim(),
-      password: password.trim(),
-    );
-    // Setelah berhasil register, Appwrite otomatis membuat session baru
+  Future<String> login({required String email, required String password}) async {
+    ref.read(authLoadingProvider.notifier).state = true;
+    ref.read(authErrorProvider.notifier).state = null;
+
+    try {
+      await account.createEmailSession(email: email, password: password);
+      final user = await account.get();
+      ref.read(userProvider.notifier).setUser(user);
+      state = const AsyncValue.data(true);
+
+      final role = user.prefs.data['role'] as String?;
+
+      if (role == 'owner' || role == 'renter') {
+        return role!;
+      } else {
+        throw Exception('Role pengguna tidak ditemukan atau tidak valid');
+      }
+    } catch (e) {
+      ref.read(authErrorProvider.notifier).state = _getErrorMessage(e);
+      state = AsyncValue.error(e, StackTrace.current);
+      rethrow;
+    } finally {
+      ref.read(authLoadingProvider.notifier).state = false;
+    }
   }
 
-  /// Login dengan email & password (gunakan createEmailSession)
-  Future<void> login({
+  Future<bool> register({
     required String email,
     required String password,
+    required String name,
+    required String role,
   }) async {
-    await _account.createEmailSession(
-      email: email.trim(),
-      password: password.trim(),
-    );
+    ref.read(authLoadingProvider.notifier).state = true;
+    ref.read(authErrorProvider.notifier).state = null;
+
+    try {
+      // Buat akun
+      await account.create(
+        userId: ID.unique(),
+        email: email,
+        password: password,
+        name: name,
+      );
+
+      // Login sementara
+      await account.createEmailSession(email: email, password: password);
+
+      // Simpan role ke prefs
+      await account.updatePrefs(prefs: {'role': role});
+
+      // Logout lagi
+      await account.deleteSession(sessionId: 'current');
+
+      state = const AsyncValue.data(false);
+      return true;
+    } catch (e) {
+      ref.read(authErrorProvider.notifier).state = _getErrorMessage(e);
+      state = AsyncValue.error(e, StackTrace.current);
+      return false;
+    } finally {
+      ref.read(authLoadingProvider.notifier).state = false;
+    }
   }
 
-  /// Logout (hapus session 'current')
   Future<void> logout() async {
-    await _account.deleteSession(sessionId: 'current');
+    try {
+      await account.deleteSessions();
+    } catch (_) {}
+    ref.read(userProvider.notifier).clearUser();
+    state = const AsyncValue.data(false);
+    ref.read(authErrorProvider.notifier).state = null;
+  }
+
+  Future<void> refreshAuth() async {
+    state = const AsyncValue.loading();
+    await _checkAuth();
+  }
+
+  Future<bool> updateUserRole(String role) async {
+    try {
+      await account.updatePrefs(prefs: {'role': role});
+      final user = await account.get();
+      ref.read(userProvider.notifier).setUser(user);
+      return true;
+    } catch (e) {
+      ref.read(authErrorProvider.notifier).state = _getErrorMessage(e);
+      return false;
+    }
+  }
+
+  String _getErrorMessage(dynamic error) {
+    if (error is AppwriteException) {
+      switch (error.code) {
+        case 401:
+          return 'Email atau password tidak valid';
+        case 409:
+          return 'Email sudah terdaftar';
+        case 429:
+          return 'Terlalu banyak percobaan, coba lagi nanti';
+        default:
+          return error.message ?? 'Terjadi kesalahan yang tidak diketahui';
+      }
+    }
+    return error.toString();
   }
 }
-
-/// Provider untuk instance AuthController
-final authControllerProvider = Provider<AuthController>((ref) {
-  return AuthController(ref);
-});
