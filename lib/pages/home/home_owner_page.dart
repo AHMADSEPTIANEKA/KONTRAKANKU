@@ -11,570 +11,811 @@ class HomeOwnerPage extends ConsumerWidget {
     final propertiesAsync = ref.watch(propertyListProvider);
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text(
-          'Beranda Pemilik',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: const Color(0xFF2E7D8F),
-        elevation: 0,
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            child: IconButton(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  // ignore: deprecated_member_use
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          // Modern App Bar
+          SliverAppBar(
+            expandedHeight: 120,
+            floating: false,
+            pinned: true,
+            elevation: 0,
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF1E40AF),
+                      Color(0xFF3B82F6),
+                      Color(0xFF60A5FA),
+                    ],
+                  ),
                 ),
-                child: const Icon(
-                  Icons.logout_rounded,
-                  color: Colors.white,
-                  size: 20,
+                child: const SafeArea(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(24, 16, 24, 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Dashboard',
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Kelola properti dengan mudah',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white70,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-              onPressed: () async {
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (_) => Center(
+            ),
+            actions: [
+              Container(
+                margin: const EdgeInsets.only(right: 16, top: 8),
+                child: Material(
+                  // ignore: deprecated_member_use
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(16),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () => _showLogoutDialog(context, ref),
                     child: Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
+                      padding: const EdgeInsets.all(12),
+                      child: const Icon(
+                        Icons.power_settings_new_rounded,
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CircularProgressIndicator(
-                            color: Color(0xFF2E7D8F),
-                          ),
-                          SizedBox(height: 16),
-                          Text('Logging out...'),
-                        ],
+                        size: 22,
                       ),
                     ),
                   ),
-                );
+                ),
+              ),
+            ],
+          ),
 
-                try {
-                  await ref.read(authProvider.notifier).logout();
-
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      '/login',
-                      (route) => false,
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) Navigator.pop(context);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Logout gagal: $e'),
-                        backgroundColor: Colors.red[400],
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    );
-                  }
-                }
+          // Content
+          SliverToBoxAdapter(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(propertyListProvider);
               },
+              color: const Color(0xFF3B82F6),
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Stats Cards
+                    _buildStatsCards(propertiesAsync),
+                    
+                    const SizedBox(height: 32),
+
+                    // Properties Section Header
+                    Row(
+                      children: [
+                        const Text(
+                          'Properti Saya',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0F172A),
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        const Spacer(),
+                        _buildAddPropertyButton(context, ref),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Properties List
+                    propertiesAsync.when(
+                      data: (properties) => _buildPropertiesList(properties, context, ref),
+                      loading: () => _buildLoadingState(),
+                      error: (e, st) => _buildErrorState(e),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(propertyListProvider);
-        },
-        color: const Color(0xFF2E7D8F),
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    );
+  }
+
+  Widget _buildStatsCards(AsyncValue propertiesAsync) {
+    return propertiesAsync.when(
+      data: (properties) {
+        final availableCount = properties.where((p) => p.data['status'] == 'Tersedia').length;
+        final rentedCount = properties.length - availableCount;
+        
+        return Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                'Total Properti',
+                properties.length.toString(),
+                Icons.home_work_rounded,
+                const Color(0xFF3B82F6),
+                const Color(0xFFEFF6FF),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildStatCard(
+                'Tersedia',
+                availableCount.toString(),
+                Icons.check_circle_rounded,
+                const Color(0xFF10B981),
+                const Color(0xFFECFEF3),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildStatCard(
+                'Disewa',
+                rentedCount.toString(),
+                Icons.key_rounded,
+                const Color(0xFFF59E0B),
+                const Color(0xFFFEF3C7),
+              ),
+            ),
+          ],
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildStatCard(String title, String value, IconData icon, Color iconColor, Color bgColor) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            // ignore: deprecated_member_use
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              icon,
+              color: iconColor,
+              size: 24,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0F172A),
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAddPropertyButton(BuildContext context, WidgetRef ref) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            // ignore: deprecated_member_use
+            color: const Color(0xFF3B82F6).withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () async {
+            final result = await Navigator.pushNamed(context, '/add-property');
+            if (result == true) {
+              ref.invalidate(propertyListProvider);
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Welcome Header
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF2E7D8F), Color(0xFF3A9BB0)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        // ignore: deprecated_member_use
-                        color: const Color(0xFF2E7D8F).withOpacity(0.3),
-                        blurRadius: 15,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.home_rounded,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                          SizedBox(width: 12),
-                          Text(
-                            'Selamat Datang!',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        'Kelola properti kontrakan Anda dengan mudah',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.white70,
-                        ),
-                      ),
-                    ],
+                Icon(
+                  Icons.add_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'Tambah',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
                   ),
                 ),
-
-                const SizedBox(height: 24),
-
-                // Properties List
-                propertiesAsync.when(
-                  data: (properties) {
-                    if (properties.isEmpty) {
-                      return Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(40),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              // ignore: deprecated_member_use
-                              color: Colors.grey.withOpacity(0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: const Column(
-                          children: [
-                            Icon(
-                              Icons.home_work_outlined,
-                              size: 80,
-                              color: Colors.grey,
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'Belum ada properti',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Tambahkan properti pertama Anda',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: properties.length,
-                      itemBuilder: (context, index) {
-                        final property = properties[index];
-                        final status = property.data['status'] ?? 'Tersedia';
-                        final isAvailable = status == 'Tersedia';
-
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                // ignore: deprecated_member_use
-                                color: Colors.grey.withOpacity(0.1),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: InkWell(
-                            onTap: () {
-                              Navigator.pushNamed(
-                                context,
-                                '/property-detail',
-                                arguments: property,
-                              );
-                            },
-                            borderRadius: BorderRadius.circular(20),
-                            child: Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          // ignore: deprecated_member_use
-                                          color: const Color(0xFF2E7D8F).withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        child: const Icon(
-                                          Icons.apartment_rounded,
-                                          color: Color(0xFF2E7D8F),
-                                          size: 24,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              property.data['nama'] ?? 'Tanpa Nama',
-                                              style: const TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.black87,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Row(
-                                              children: [
-                                                Icon(
-                                                  Icons.location_on_rounded,
-                                                  size: 16,
-                                                  color: Colors.grey[600],
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Expanded(
-                                                  child: Text(
-                                                    property.data['lokasi'] ?? 'Tanpa Lokasi',
-                                                    style: TextStyle(
-                                                      fontSize: 14,
-                                                      color: Colors.grey[600],
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      PopupMenuButton<String>(
-                                        icon: Container(
-                                          padding: const EdgeInsets.all(8),
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey[100],
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: const Icon(
-                                            Icons.more_vert_rounded,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(16),
-                                        ),
-                                        elevation: 8,
-                                        onSelected: (value) async {
-                                          if (value == 'edit') {
-                                            Navigator.pushNamed(
-                                              context,
-                                              '/edit-property',
-                                              arguments: property,
-                                            );
-                                          } else if (value == 'toggle') {
-                                            await ref.read(propertyListProvider.notifier).toggleStatus(
-                                                  property.$id,
-                                                  status,
-                                                );
-                                          } else if (value == 'delete') {
-                                            final confirmed = await showDialog<bool>(
-                                              context: context,
-                                              builder: (_) => AlertDialog(
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(20),
-                                                ),
-                                                title: const Row(
-                                                  children: [
-                                                    Icon(
-                                                      Icons.delete_outline_rounded,
-                                                      color: Colors.red,
-                                                    ),
-                                                    SizedBox(width: 12),
-                                                    Text('Hapus Properti'),
-                                                  ],
-                                                ),
-                                                content: const Text(
-                                                  'Yakin ingin menghapus properti ini? Tindakan ini tidak dapat dibatalkan.',
-                                                ),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () => Navigator.pop(context, false),
-                                                    child: const Text('Batal'),
-                                                  ),
-                                                  ElevatedButton(
-                                                    onPressed: () => Navigator.pop(context, true),
-                                                    style: ElevatedButton.styleFrom(
-                                                      backgroundColor: Colors.red,
-                                                      foregroundColor: Colors.white,
-                                                      shape: RoundedRectangleBorder(
-                                                        borderRadius: BorderRadius.circular(12),
-                                                      ),
-                                                    ),
-                                                    child: const Text('Hapus'),
-                                                  ),
-                                                ],
-                                              ),
-                                            );
-
-                                            if (confirmed == true) {
-                                              await ref
-                                                  .read(propertyListProvider.notifier)
-                                                  .deleteProperty(property.$id);
-                                            }
-                                          }
-                                        },
-                                        itemBuilder: (context) => [
-                                          const PopupMenuItem(
-                                            value: 'edit',
-                                            child: Row(
-                                              children: [
-                                                Icon(Icons.edit_rounded, size: 20),
-                                                SizedBox(width: 12),
-                                                Text('Edit'),
-                                              ],
-                                            ),
-                                          ),
-                                          PopupMenuItem(
-                                            value: 'toggle',
-                                            child: Row(
-                                              children: [
-                                                Icon(
-                                                  isAvailable
-                                                      ? Icons.check_circle_outline_rounded
-                                                      : Icons.home_rounded,
-                                                  size: 20,
-                                                ),
-                                                const SizedBox(width: 12),
-                                                Text(isAvailable ? 'Tandai Disewa' : 'Tandai Tersedia'),
-                                              ],
-                                            ),
-                                          ),
-                                          const PopupMenuItem(
-                                            value: 'delete',
-                                            child: Row(
-                                              children: [
-                                                Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
-                                                SizedBox(width: 12),
-                                                Text('Hapus', style: TextStyle(color: Colors.red)),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  // Status Badge
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                          vertical: 8,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: isAvailable
-                                              ? Colors.green[50]
-                                              : Colors.orange[50],
-                                          borderRadius: BorderRadius.circular(25),
-                                          border: Border.all(
-                                            color: isAvailable
-                                                ? Colors.green[200]!
-                                                : Colors.orange[200]!,
-                                            width: 1,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Container(
-                                              width: 8,
-                                              height: 8,
-                                              decoration: BoxDecoration(
-                                                color: isAvailable
-                                                    ? Colors.green[500]
-                                                    : Colors.orange[500],
-                                                shape: BoxShape.circle,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              status,
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                                color: isAvailable
-                                                    ? Colors.green[700]
-                                                    : Colors.orange[700],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const Spacer(),
-                                      Icon(
-                                        Icons.arrow_forward_ios_rounded,
-                                        size: 16,
-                                        color: Colors.grey[400],
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                  loading: () => Container(
-                    height: 200,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFF2E7D8F),
-                      ),
-                    ),
-                  ),
-                  error: (e, st) => Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.red[50],
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.red[200]!),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.error_outline_rounded, color: Colors.red[400]),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Gagal memuat properti: $e',
-                            style: TextStyle(color: Colors.red[700]),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Add Property Button
-                Container(
-                  width: double.infinity,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF2E7D8F), Color(0xFF3A9BB0)],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        // ignore: deprecated_member_use
-                        color: const Color(0xFF2E7D8F).withOpacity(0.4),
-                        blurRadius: 12,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      final result = await Navigator.pushNamed(context, '/add-property');
-                      if (result == true) {
-                        ref.invalidate(propertyListProvider);
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.add_home_rounded,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                        SizedBox(width: 12),
-                        Text(
-                          'Tambah Properti',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 20),
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildPropertiesList(List properties, BuildContext context, WidgetRef ref) {
+    if (properties.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: properties.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 16),
+      itemBuilder: (context, index) {
+        final property = properties[index];
+        final status = property.data['status'] ?? 'Tersedia';
+        final isAvailable = status == 'Tersedia';
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                // ignore: deprecated_member_use
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(24),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(24),
+              onTap: () {
+                Navigator.pushNamed(
+                  context,
+                  '/property-detail',
+                  arguments: property,
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                // ignore: deprecated_member_use
+                                const Color(0xFF3B82F6).withOpacity(0.1),
+                                // ignore: deprecated_member_use
+                                const Color(0xFF1D4ED8).withOpacity(0.05),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Icon(
+                            Icons.apartment_rounded,
+                            color: Color(0xFF3B82F6),
+                            size: 28,
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                property.data['nama'] ?? 'Tanpa Nama',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF0F172A),
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.location_on_rounded,
+                                    size: 18,
+                                    color: Colors.grey[500],
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      property.data['lokasi'] ?? 'Tanpa Lokasi',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        color: Colors.grey[600],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        _buildPropertyMenu(context, ref, property, status, isAvailable),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isAvailable
+                                ? const Color(0xFFECFEF3)
+                                : const Color(0xFFFEF3C7),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: isAvailable
+                                      ? const Color(0xFF10B981)
+                                      : const Color(0xFFF59E0B),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                status,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: isAvailable
+                                      ? const Color(0xFF059669)
+                                      : const Color(0xFFD97706),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 16,
+                          color: Colors.grey[400],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPropertyMenu(BuildContext context, WidgetRef ref, property, String status, bool isAvailable) {
+    return PopupMenuButton<String>(
+      icon: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          Icons.more_vert_rounded,
+          color: Colors.grey[600],
+          size: 20,
+        ),
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      elevation: 8,
+      onSelected: (value) => _handleMenuAction(context, ref, value, property, status),
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: 'edit',
+          child: Row(
+            children: [
+              Icon(Icons.edit_rounded, size: 20, color: Color(0xFF3B82F6)),
+              SizedBox(width: 12),
+              Text('Edit', style: TextStyle(fontWeight: FontWeight.w500)),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'toggle',
+          child: Row(
+            children: [
+              Icon(
+                isAvailable ? Icons.key_rounded : Icons.check_circle_rounded,
+                size: 20,
+                color: isAvailable ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                isAvailable ? 'Tandai Disewa' : 'Tandai Tersedia',
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(Icons.delete_outline_rounded, size: 20, color: Color(0xFFEF4444)),
+              SizedBox(width: 12),
+              Text('Hapus', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w500)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(48),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            // ignore: deprecated_member_use
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.home_work_outlined,
+              size: 64,
+              color: Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Belum ada properti',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Mulai dengan menambahkan properti pertama Anda',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 15,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Container(
+      height: 200,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            // ignore: deprecated_member_use
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: const Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFF3B82F6),
+          strokeWidth: 3,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(dynamic error) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF2F2),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFFECACA)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.error_outline_rounded,
+            color: Color(0xFFEF4444),
+            size: 24,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Gagal memuat data',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFDC2626),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  error.toString(),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFFEF4444),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
+            SizedBox(width: 12),
+            Text(
+              'Keluar',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Apakah Anda yakin ingin keluar dari akun?',
+          style: TextStyle(fontSize: 16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Batal',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => _performLogout(context, ref),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              'Keluar',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _performLogout(BuildContext context, WidgetRef ref) async {
+    Navigator.pop(context); // Close dialog
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Center(
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(
+                color: Color(0xFF3B82F6),
+                strokeWidth: 3,
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Sedang keluar...',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      await ref.read(authProvider.notifier).logout();
+      if (context.mounted) {
+        Navigator.pop(context);
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/login',
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (context.mounted) Navigator.pop(context);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Logout gagal: $e'),
+            backgroundColor: const Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleMenuAction(BuildContext context, WidgetRef ref, String value, property, String status) async {
+    if (value == 'edit') {
+      Navigator.pushNamed(
+        context,
+        '/edit-property',
+        arguments: property,
+      );
+    } else if (value == 'toggle') {
+      await ref.read(propertyListProvider.notifier).toggleStatus(
+            property.$id,
+            status,
+          );
+    } else if (value == 'delete') {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444)),
+              SizedBox(width: 12),
+              Text(
+                'Hapus Properti',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          content: const Text(
+            'Yakin ingin menghapus properti ini? Tindakan ini tidak dapat dibatalkan.',
+            style: TextStyle(fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text(
+                'Batal',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFEF4444),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Hapus',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed == true) {
+        await ref.read(propertyListProvider.notifier).deleteProperty(property.$id);
+      }
+    }
   }
 }

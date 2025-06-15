@@ -12,7 +12,7 @@ import 'auth/reset_password_page.dart';
 import 'pages/home/home_owner_page.dart';
 import 'pages/home/home_renter_page.dart';
 import 'pages/property/add_property_page.dart';
-import 'pages/property/edit_property_page.dart'; // ✅ Ditambahkan
+import 'pages/property/edit_property_page.dart'; 
 import 'pages/property/property_detail_page.dart';
 
 import 'package:appwrite/models.dart'; // untuk Document (edit page args)
